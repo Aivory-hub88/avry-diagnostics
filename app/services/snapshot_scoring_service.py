@@ -175,7 +175,11 @@ def calculate_snapshot_score(answers: List[Dict]) -> Dict:
                 "improve_response_time", "scale_without_hiring",
                 "improve_decision_speed", "improve_data_visibility", "exploratory"
             ]
-            idx = answer.get("selected_option", 0)
+            raw_idx = answer.get("selected_option", 0)
+            try:
+                idx = int(raw_idx)
+            except (TypeError, ValueError):
+                idx = -1
             if 0 <= idx < len(objective_map):
                 primary_objective = objective_map[idx]
             break
@@ -206,12 +210,21 @@ def calculate_snapshot_score(answers: List[Dict]) -> Dict:
         # Get category
         category = CATEGORY_MAPPING[question_id]
         
+        # Clamp selected_option to the valid 0-4 range. Guards against
+        # malformed payloads (None, strings, out-of-range) that would
+        # otherwise distort reverse-scoring and category normalization.
+        try:
+            opt = int(selected_option)
+        except (TypeError, ValueError):
+            opt = 0
+        opt = max(0, min(4, opt))
+
         # Apply reverse scoring if needed
         if question_id in REVERSE_SCORE_QUESTIONS:
-            score = 4 - selected_option  # Reverse: 0→4, 1→3, 2→2, 3→1, 4→0
+            score = 4 - opt  # Reverse: 0→4, 1→3, 2→2, 3→1, 4→0
         else:
-            score = selected_option
-        
+            score = opt
+
         category_scores[category].append(score)
     
     # Calculate category averages and normalize to 0-100
@@ -316,8 +329,7 @@ def calculate_priority_score(
 
 def get_system_recommendations(
     primary_objective: str,
-    category_scores: Dict[str, float],
-    automation_maturity: float
+    category_scores: Dict[str, float]
 ) -> List[str]:
     """
     Get top 3 system recommendations based on:
