@@ -1,5 +1,6 @@
 """OpenRouter AI client for Aivory — with key rotation support (requests-based)"""
 import os
+import asyncio
 import logging
 import requests
 from typing import List, Dict, Optional
@@ -113,7 +114,7 @@ class OpenRouterClient:
 
             try:
                 logger.info(f"Calling OpenRouter API with model: {model} ({key_label})")
-                response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+                response = await asyncio.to_thread(requests.post, url, json=payload, headers=headers, timeout=timeout)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -164,7 +165,7 @@ class OpenRouterClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         try:
-            response = requests.get(url, headers=headers, timeout=30.0)
+            response = await asyncio.to_thread(requests.get, url, headers=headers, timeout=30.0)
             if response.status_code != 200:
                 raise ValueError(f"Failed to fetch models: {response.text}")
             data = response.json()
